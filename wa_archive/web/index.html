@@ -1,0 +1,734 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Archive</title>
+<style>
+:root{
+  --paper:#f7f7f5; --shell:#fff; --ink:#1a1d21; --muted:#6e7076; --faint:#9a9a9e;
+  --rule:#e4e4e0; --sent:#dde7e3; --sent-line:#c6d6d0; --accent:#2f6f5e;
+  --mark:#f0d48a; --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root{--paper:#16181a; --shell:#1d2023; --ink:#e6e6e3; --muted:#95979c; --faint:#6a6c72;
+        --rule:#2c3033; --sent:#233530; --sent-line:#315046; --accent:#7fc0ab; --mark:#7a6428}
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--paper);color:var(--ink);font:400 15px/1.6 var(--sans);
+  display:grid;grid-template-columns:302px 1fr;overflow:hidden}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* ---- sidebar ---- */
+aside{border-right:1px solid var(--rule);display:flex;flex-direction:column;
+  background:var(--shell);min-height:0}
+.brand{padding:14px 16px 10px;border-bottom:1px solid var(--rule)}
+.brand h1{margin:0;font-size:13px;font-weight:600;letter-spacing:.14em;text-transform:uppercase}
+.brand .sum{font:400 11px/1.5 var(--mono);color:var(--muted);margin-top:3px}
+.find{padding:10px 12px;border-bottom:1px solid var(--rule);display:flex;gap:6px}
+.find input{flex:1;min-width:0;padding:7px 9px;border:1px solid var(--rule);border-radius:3px;
+  background:var(--paper);color:var(--ink);font:400 13px var(--sans)}
+.find button{padding:0 9px;border:1px solid var(--rule);border-radius:3px;
+  font:400 11px var(--mono);color:var(--muted)}
+.find button[aria-pressed=true]{background:var(--accent);color:var(--shell);border-color:var(--accent)}
+.list{overflow-y:auto;flex:1;min-height:0}
+.row{display:block;width:100%;text-align:left;padding:10px 16px;border-bottom:1px solid var(--rule)}
+.row:hover{background:var(--paper)}
+.row[aria-current=true]{background:var(--paper);box-shadow:inset 3px 0 0 var(--accent)}
+.row .top{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.row .nm{font-weight:500;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .dt{font:400 10px var(--mono);color:var(--faint);flex:none}
+/* These must be block: as inline spans the preview and the tag run together on
+   one line and the ellipsis never engages, so a long preview wraps the row. */
+.row .pv{display:block;font-size:12px;color:var(--muted);overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;margin-top:2px}
+.row .tag{display:block;font:400 10px var(--mono);color:var(--faint);
+  letter-spacing:.05em;margin-top:3px}
+
+/* ---- message pane ---- */
+main{display:grid;grid-template-rows:auto 1fr;min-height:0;min-width:0}
+.bar{padding:11px 20px;border-bottom:1px solid var(--rule);background:var(--shell);
+  display:flex;align-items:center;gap:14px}
+.bar h2{margin:0;font-size:15px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar .sub{font:400 11px var(--mono);color:var(--muted);flex:none}
+.bar .sp{flex:1}
+.bar a,.bar .bt{font:400 11px var(--mono);color:var(--muted);text-decoration:none;padding:4px 7px;
+  border:1px solid var(--rule);border-radius:3px;flex:none;white-space:nowrap}
+.bar a:hover,.bar .bt:hover{color:var(--accent);border-color:var(--accent)}
+.bar .bt[aria-pressed=true]{background:var(--accent);color:var(--shell);border-color:var(--accent)}
+.bar .back{font-size:14px;line-height:1;padding:3px 9px}
+.bar .back[hidden]{display:none}
+
+/* ---- attachment browser ---- */
+.gfind{display:flex;gap:6px;margin-bottom:10px}
+.gfind input{flex:1;min-width:0;padding:7px 10px;border:1px solid var(--rule);border-radius:3px;
+  background:var(--shell);color:var(--ink);font:400 13px var(--sans)}
+.gfind input:focus{outline:none;border-color:var(--accent)}
+.gfind button{font:400 11px var(--mono);color:var(--muted);padding:5px 10px;
+  border:1px solid var(--rule);border-radius:3px;flex:none;white-space:nowrap}
+.gfind button[aria-pressed=true]{background:var(--accent);color:var(--shell);border-color:var(--accent)}
+.gfind button:disabled{opacity:.45}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.tabs button{font:400 11px var(--mono);color:var(--muted);padding:5px 10px;
+  border:1px solid var(--rule);border-radius:3px}
+.tabs button[aria-pressed=true]{background:var(--accent);color:var(--shell);border-color:var(--accent)}
+.tabs button:hover{border-color:var(--accent)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:8px}
+.cell{position:relative;aspect-ratio:1;border:1px solid var(--rule);border-radius:3px;
+  overflow:hidden;background:var(--shell);padding:0;display:block;cursor:pointer}
+.cell img,.cell video{width:100%;height:100%;object-fit:cover;display:block}
+.cell .cap{position:absolute;left:0;right:0;bottom:0;background:#000a;color:#fff;
+  font:400 9px var(--mono);padding:3px 5px;text-align:left;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.cell:hover{border-color:var(--accent)}
+.filerow{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:9px 11px;
+  margin-bottom:6px;background:var(--shell);border:1px solid var(--rule);border-radius:3px}
+.filerow:hover{border-color:var(--accent)}
+.filerow .ic{font:400 14px var(--mono);color:var(--muted);flex:none}
+.filerow .nm2{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.filerow .meta2{font:400 10px var(--mono);color:var(--faint);flex:none;text-align:right}
+/* Links keep the archive's palette rather than browser-default blue, and
+   wrap so a long URL doesn't force the row to scroll sideways. */
+.filerow .nm2 a{color:var(--accent);text-decoration:none;word-break:break-all}
+.filerow .nm2 a:hover{text-decoration:underline}
+.more{display:block;width:100%;padding:10px;margin-top:10px;border:1px dashed var(--rule);
+  border-radius:3px;font:400 11px var(--mono);color:var(--muted)}
+.more:hover{border-color:var(--accent);color:var(--accent)}
+.stage{display:grid;grid-template-columns:1fr 46px;min-height:0}
+.scroll{overflow-y:auto;padding:22px 26px 40px;min-height:0;display:flex;flex-direction:column}
+.wrap{max-width:44rem;width:100%;margin:auto auto 0;flex:none}
+
+.day{display:flex;align-items:center;gap:12px;margin:26px 0 14px;
+  font:400 10px/1 var(--mono);color:var(--faint);letter-spacing:.12em;text-transform:uppercase}
+.day::before,.day::after{content:"";height:1px;background:var(--rule);flex:1}
+.m{max-width:78%;margin-bottom:7px;padding:8px 11px;background:var(--shell);
+  border:1px solid var(--rule);border-radius:3px;scroll-margin:120px}
+.m.out{margin-left:auto;background:var(--sent);border-color:var(--sent-line)}
+.m.flash{animation:flash 1.6s ease-out}
+@keyframes flash{0%,30%{box-shadow:0 0 0 3px var(--mark)}100%{box-shadow:0 0 0 3px transparent}}
+@media (prefers-reduced-motion:reduce){.m.flash{animation:none;box-shadow:0 0 0 3px var(--mark)}}
+.m .hd{display:flex;justify-content:space-between;gap:14px;align-items:baseline;margin-bottom:2px}
+.m .who{font-size:12px;font-weight:600}
+.m .tm{font:400 10px var(--mono);color:var(--faint);flex:none}
+.m .tx{white-space:pre-wrap;word-break:break-word}
+.m .st{font:400 10px var(--mono);color:var(--faint);text-align:right;margin-top:2px}
+.m .st.read{color:var(--accent)}
+.m.ev{max-width:100%;text-align:center;background:none;border:none;color:var(--muted);
+  font-size:12px;font-style:italic;padding:4px}
+.m.gone .tx{color:var(--faint);font-style:italic}
+.att{margin-top:5px}
+.att img{max-width:100%;max-height:380px;border-radius:2px;display:block;cursor:zoom-in}
+.att video{max-width:100%;max-height:380px;border-radius:2px;display:block}
+.att audio{width:100%;max-width:300px;display:block}
+/* Escape hatch when a browser can play neither source. */
+.chip.dl{margin-top:4px;font-size:11px;padding:3px 8px}
+.chip{display:inline-flex;align-items:center;gap:7px;padding:6px 10px;border:1px solid var(--rule);
+  border-radius:3px;font:400 12px var(--mono);color:var(--muted);text-decoration:none}
+.chip:hover{color:var(--accent);border-color:var(--accent)}
+.chip.miss{border-style:dashed;cursor:default}
+mark{background:var(--mark);color:inherit;border-radius:1px;padding:0 1px}
+
+/* ---- density rail (the signature: message volume per month) ---- */
+.rail{border-left:1px solid var(--rule);background:var(--shell);overflow-y:auto;
+  padding:8px 0;display:flex;flex-direction:column;gap:1px;align-items:stretch}
+.rail button{position:relative;height:13px;padding:0 6px;display:flex;align-items:center}
+.rail .bar-i{background:var(--rule);height:7px;border-radius:1px;min-width:2px;transition:background .12s}
+.rail button:hover .bar-i,.rail button[aria-current=true] .bar-i{background:var(--accent)}
+.rail button::after{content:attr(data-label);position:absolute;right:calc(100% + 6px);top:-2px;
+  font:400 10px var(--mono);color:var(--muted);background:var(--shell);padding:1px 5px;
+  border:1px solid var(--rule);border-radius:2px;white-space:nowrap;opacity:0;pointer-events:none}
+.rail button:hover::after{opacity:1}
+.rail .yr{font:400 9px var(--mono);color:var(--faint);padding:5px 6px 1px;letter-spacing:.06em}
+
+/* ---- search results ---- */
+/* The thread is bottom-anchored so a short chat sits at the bottom like a
+   messenger. Results are a list, not a conversation — they start at the top. */
+.wrap.hits{margin-top:0}
+.hits .n{font:400 11px var(--mono);color:var(--muted);margin-bottom:14px;letter-spacing:.05em}
+.hit{display:block;width:100%;text-align:left;padding:11px 13px;margin-bottom:7px;
+  background:var(--shell);border:1px solid var(--rule);border-radius:3px}
+.hit:hover{border-color:var(--accent)}
+.hit .meta{display:flex;justify-content:space-between;gap:12px;font:400 10px var(--mono);
+  color:var(--faint);margin-bottom:4px}
+.hit .meta b{color:var(--muted);font-weight:400}
+.hit .ex{font-size:13.5px;line-height:1.55}
+.empty{color:var(--muted);text-align:center;padding:70px 20px;font-size:14px}
+.empty kbd{font:400 11px var(--mono);border:1px solid var(--rule);border-radius:3px;padding:1px 5px}
+.stage{position:relative}
+.lb{position:fixed;inset:0;background:#000c;display:flex;align-items:center;justify-content:center;
+  z-index:20;cursor:zoom-out;padding:30px}
+.lb img{max-width:100%;max-height:100%;border-radius:3px}
+@media (max-width:760px){body{grid-template-columns:1fr}aside{display:none}.stage{grid-template-columns:1fr 32px}}
+</style>
+</head>
+<body>
+<aside>
+  <div class="brand">
+    <h1>Archive</h1>
+    <div class="sum" id="sum">reading…</div>
+  </div>
+  <div class="find">
+    <input id="q" type="search" placeholder="Search messages" aria-label="Search messages">
+    <button id="scope" aria-pressed="false" title="Limit search to the open chat">all</button>
+  </div>
+  <div class="list" id="chats"></div>
+</aside>
+
+<main>
+  <div class="bar">
+    <button id="back" class="bt back" hidden title="Back (Esc)">←</button>
+    <h2 id="title">Select a chat</h2>
+    <span class="sub" id="subtitle"></span>
+    <span class="sp"></span>
+    <button id="order" class="bt" title="Read oldest-first or newest-first">↓ newest first</button>
+    <button id="gallery" class="bt" title="Browse every attachment">attachments</button>
+    <a id="ex-html" href="#" target="_blank" rel="noopener">html</a>
+    <a id="ex-csv" href="#">csv</a>
+    <a id="ex-txt" href="#">txt</a>
+  </div>
+  <div class="stage">
+    <div class="scroll" id="scroll"><div class="wrap" id="thread">
+      <div class="empty">Pick a conversation, or press <kbd>/</kbd> to search everything.</div>
+    </div></div>
+    <div class="rail" id="rail"></div>
+  </div>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const api = (p, o) => fetch(p, o).then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e)));
+const esc = s => (s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const pad = n => String(n).padStart(2, '0');
+
+let chats = [], current = null, timeline = [], oldestId = null, newestId = null, loading = false;
+let searchMode = false, scopeChat = false;
+// 'new' reads like a messenger: latest at the bottom, older loaded upward.
+// 'old' reads like a book: the conversation's beginning first, newer downward.
+let order = 'new';
+let galleryMode = false, galleryKind = null, galleryOffset = 0, galleryScope = false;
+let galleryQuery = '', galleryTimer;
+
+/* ---------- where you came from ----------
+   Clicking a search hit or an attachment throws away the list you were
+   reading. Without a way back you have to retype the search and scroll to
+   where you were, which for a 300-hit list is the whole task again.
+   Each entry records enough to rebuild the view, including scroll position. */
+let backStack = [];
+const MAX_BACK = 30;
+
+function currentView() {
+  const scroll = Math.round($('#scroll').scrollTop);
+  if (galleryMode)
+    return {view:'gallery', kind:galleryKind, scope:galleryScope,
+            q:galleryQuery, count:galleryOffset, chat:current, scroll};
+  if (searchMode)
+    return {view:'search', q:$('#q').value, scope:scopeChat, chat:current, scroll};
+  if (current) return {view:'chat', id:current, scroll};
+  return null;
+}
+
+function pushBack() {
+  const v = currentView();
+  if (!v) return;
+  backStack.push(v);
+  if (backStack.length > MAX_BACK) backStack.shift();
+  renderBack();
+}
+
+function renderBack() {
+  const b = $('#back');
+  b.hidden = backStack.length === 0;
+  const top = backStack[backStack.length - 1];
+  b.title = top
+    ? `Back to ${top.view === 'search' ? 'search results'
+              : top.view === 'gallery' ? 'attachments' : 'the conversation'} (Esc)`
+    : 'Back';
+}
+
+async function goBack() {
+  const v = backStack.pop();
+  renderBack();
+  if (!v) return;
+  const sc = $('#scroll');
+
+  if (v.view === 'chat') {
+    await openChat(v.id);
+  } else if (v.view === 'search') {
+    current = v.chat;
+    scopeChat = v.scope;
+    $('#scope').setAttribute('aria-pressed', scopeChat);
+    $('#scope').textContent = scopeChat ? 'this chat' : 'all';
+    $('#q').value = v.q;
+    await runSearch(v.q);
+  } else {
+    current = v.chat;
+    galleryScope = v.scope;
+    galleryQuery = v.q;
+    await openGallery(v.kind);
+    // Re-page until we are back where we were, so a deep scroll survives.
+    let guard = 0;
+    while (galleryOffset < v.count && guard++ < 20) await openGallery(null, true);
+  }
+  // Restore after layout settles; images arriving later would otherwise shift it.
+  requestAnimationFrame(() => { sc.scrollTop = v.scroll; });
+  setTimeout(() => { sc.scrollTop = v.scroll; }, 260);
+}
+
+const D = ts => new Date(ts * 1000);
+const dayKey = ts => { const d = D(ts); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+const dayLabel = ts => D(ts).toLocaleDateString(undefined, {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+const clock = ts => { const d = D(ts); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const shortDate = ts => { const d = D(ts); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+
+// Stable per-sender hue so a group chat is scannable by colour alone.
+const HUES = [168, 24, 210, 292, 96, 340, 48, 258];
+function senderTone(jid) {
+  let h = 0; for (const ch of jid || '') h = (h * 31 + ch.charCodeAt(0)) | 0;
+  const dark = matchMedia('(prefers-color-scheme:dark)').matches;
+  return `hsl(${HUES[Math.abs(h) % HUES.length]} 42% ${dark ? 68 : 34}%)`;
+}
+
+function fmtBytes(n) {
+  if (!n) return '';
+  const u = ['B','KB','MB','GB']; let i = 0, v = n;
+  while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; }
+  return `${v.toFixed(v < 10 && i > 0 ? 1 : 0)} ${u[i]}`;
+}
+
+/* ---------- chat list ---------- */
+async function loadChats() {
+  chats = await api('/api/chats');
+  const s = await api('/api/summary');
+  $('#sum').textContent = `${s.messages.toLocaleString()} messages · ${s.chats} chats`
+    + (s.earliest ? ` · ${shortDate(s.earliest)} → ${shortDate(s.latest)}` : '');
+  renderChats();
+}
+
+function renderChats(filter = '') {
+  // Narrow by name only when the term actually matches a chat. Otherwise the
+  // list would empty out mid message-search and strand you with no navigation.
+  const f = filter.trim().toLowerCase();
+  const named = f ? chats.filter(c => (c.name || c.jid).toLowerCase().includes(f)) : [];
+  const shown = named.length ? named : chats;
+  $('#chats').innerHTML = shown.map(c => `
+    <button class="row" data-id="${c.id}" aria-current="${current === c.id}">
+      <span class="top">
+        <span class="nm">${esc(c.name || c.jid)}</span>
+        <span class="dt">${c.last_message_at ? shortDate(c.last_message_at) : ''}</span>
+      </span>
+      <span class="pv">${esc((c.preview || '').slice(0, 70)) || '<span class="tag">no text</span>'}</span>
+      <span class="tag">${c.pinned ? '📌 ' : ''}${c.kind} · ${c.message_count.toLocaleString()}</span>
+    </button>`).join('') || '<div class="empty">No chats match.</div>';
+}
+
+/* ---------- thread rendering ---------- */
+function attachment(m) {
+  if (m.media_kind === 'location' && m.latitude != null) {
+    return `<div class="att"><a class="chip" target="_blank" rel="noopener"
+      href="https://maps.google.com/?q=${m.latitude},${m.longitude}">◈ ${esc(m.caption || 'Location')}</a></div>`;
+  }
+  if (!m.media_kind) return '';
+  if (m.missing) {
+    return `<div class="att"><span class="chip miss">${esc(m.media_kind)} — not in backup</span></div>`;
+  }
+  // A shared contact has no file behind it; the card itself is the payload.
+  if (m.media_kind === 'contact') {
+    return m.has_vcard
+      ? `<div class="att"><a class="chip" href="/api/messages/${m.id}/vcard" download>▤ ${esc(m.caption || 'Contact card')}</a></div>`
+      : `<div class="att"><span class="chip miss">contact card — not in backup</span></div>`;
+  }
+  if (!m.media_path) {
+    return `<div class="att"><span class="chip miss">${esc(m.media_kind)} — not in backup</span></div>`;
+  }
+  const url = `/media/${m.media_path}`;
+  if (m.media_kind === 'image' || m.media_kind === 'sticker')
+    return `<div class="att"><img loading="lazy" src="${url}" alt="${esc(m.caption || m.media_kind)}"></div>`;
+  if (m.media_kind === 'video')
+    return `<div class="att"><video controls preload="metadata" src="${url}"></video></div>`;
+  if (m.media_kind === 'audio') {
+    // WhatsApp voice notes are Opus-in-Ogg. Chrome and Firefox play that;
+    // Safari does not, so offer an AAC conversion as a second source and let
+    // the browser choose. A download link stays available either way.
+    const opus = /\.(opus|ogg|oga)$/i.test(m.media_path);
+    return `<div class="att"><audio controls preload="none">
+      <source src="${url}" type="${opus ? 'audio/ogg; codecs=opus' : 'audio/mp4'}">
+      ${opus ? `<source src="${url}?as=m4a" type="audio/mp4">` : ''}
+      </audio><a class="chip dl" href="${url}" download>↓ voice note</a></div>`;
+  }
+  const size = fmtBytes(m.bytes);
+  return `<div class="att"><a class="chip" href="${url}" download>▤ ${esc(m.caption || m.media_kind)}${size ? ' · ' + size : ''}</a></div>`;
+}
+
+const TICK = {sent: '✓', delivered: '✓✓', read: '✓✓', played: '✓✓ played'};
+
+function bubble(m, isGroup) {
+  if (m.event) {
+    return `<div class="m ev" id="m${m.id}">${esc(m.event.replace(/_/g, ' '))}</div>`;
+  }
+  const out = m.direction === 'out';
+  const who = out ? 'Me' : (m.sender_name || m.sender_jid || 'Unknown');
+  const showWho = isGroup || out;
+  const tone = out ? 'var(--accent)' : senderTone(m.sender_jid);
+  const tick = m.status && TICK[m.status]
+    ? `<div class="st ${m.status === 'read' || m.status === 'played' ? 'read' : ''}">${TICK[m.status]}</div>` : '';
+  return `<div class="m ${out ? 'out' : ''} ${m.is_deleted ? 'gone' : ''}" id="m${m.id}">
+    <div class="hd">${showWho ? `<span class="who" style="color:${tone}">${esc(who)}</span>` : '<span></span>'}
+      <span class="tm">${clock(m.ts_utc)}</span></div>
+    ${attachment(m)}
+    ${m.body ? `<div class="tx">${esc(m.body)}</div>` : (m.is_deleted ? '<div class="tx">message deleted</div>' : '')}
+    ${tick}</div>`;
+}
+
+function renderToHtml(list, isGroup) {
+  let html = '', lastDay = null;
+  for (const m of list) {
+    const k = dayKey(m.ts_utc);
+    if (k !== lastDay) { html += `<div class="day">${dayLabel(m.ts_utc)}</div>`; lastDay = k; }
+    html += bubble(m, isGroup);
+  }
+  return html;
+}
+
+function renderMessages(list, isGroup, prepend = false) {
+  const html = renderToHtml(list, isGroup);
+  const thread = $('#thread');
+  thread.className = 'wrap';          // leave search-results layout
+  if (prepend) {
+    const before = $('#scroll').scrollHeight;
+    thread.insertAdjacentHTML('afterbegin', html);
+    $('#scroll').scrollTop += $('#scroll').scrollHeight - before;
+  } else {
+    thread.innerHTML = html || '<div class="empty">No messages here.</div>';
+  }
+}
+
+/* ---------- opening a chat ---------- */
+async function openChat(id, aroundId = null) {
+  searchMode = false;
+  galleryMode = false;
+  current = id;
+  const chat = chats.find(c => c.id === id);
+  renderChats();                     // unfiltered, so the list stays navigable
+  $('#title').textContent = chat.name || chat.jid;
+  $('#subtitle').textContent = `${chat.kind} · ${chat.message_count.toLocaleString()} messages`;
+  for (const [el, fmt] of [['#ex-html','html'], ['#ex-csv','csv'], ['#ex-txt','txt']])
+    $(el).href = `/api/chats/${id}/export?format=${fmt}`;
+
+  // Jumping to a specific message always wins over the reading order.
+  const url = aroundId ? `/api/chats/${id}/messages?around=${aroundId}`
+            : order === 'old' ? `/api/chats/${id}/messages?oldest=1`
+            : `/api/chats/${id}/messages`;
+  const msgs = await api(url);
+  oldestId = msgs.length ? msgs[0].id : null;
+  newestId = msgs.length ? msgs[msgs.length - 1].id : null;
+  renderMessages(msgs, chat.kind === 'group');
+
+  if (aroundId) {
+    const el = document.getElementById('m' + aroundId);
+    if (el) { el.scrollIntoView({block: 'center'}); el.classList.add('flash'); }
+  } else if (order === 'old') {
+    $('#scroll').scrollTop = 0;                    // start at the beginning
+  } else {
+    $('#scroll').scrollTop = $('#scroll').scrollHeight;
+  }
+  loadTimeline(id);
+}
+
+async function loadOlder() {
+  if (loading || !current || !oldestId) return;
+  loading = true;
+  const chat = chats.find(c => c.id === current);
+  const older = await api(`/api/chats/${current}/messages?before=${oldestId}`);
+  if (older.length) { oldestId = older[0].id; renderMessages(older, chat.kind === 'group', true); }
+  else oldestId = null;
+  loading = false;
+}
+
+async function loadNewer() {
+  if (loading || !current || !newestId) return;
+  loading = true;
+  const chat = chats.find(c => c.id === current);
+  const newer = await api(`/api/chats/${current}/messages?after=${newestId}`);
+  if (newer.length) {
+    newestId = newer[newer.length - 1].id;
+    $('#thread').insertAdjacentHTML('beforeend', renderToHtml(newer, chat.kind === 'group'));
+  } else newestId = null;
+  loading = false;
+}
+
+/* ---------- density rail ---------- */
+async function loadTimeline(id) {
+  timeline = await api(`/api/chats/${id}/timeline`);
+  const max = Math.max(1, ...timeline.map(t => t.n));
+  let html = '', year = null;
+  for (const t of timeline) {
+    const y = t.month.slice(0, 4);
+    if (y !== year) { html += `<div class="yr">${y}</div>`; year = y; }
+    const w = Math.max(8, Math.round((t.n / max) * 100));
+    html += `<button data-first="${t.first_id}" data-label="${t.month} · ${t.n.toLocaleString()}"
+      title="${t.month}: ${t.n} messages"><span class="bar-i" style="width:${w}%"></span></button>`;
+  }
+  $('#rail').innerHTML = html;
+}
+
+/* ---------- attachment browser ---------- */
+const KIND_ICON = {image:'▣', video:'▶', audio:'♪', document:'▤', link:'⇗',
+                   sticker:'☺', contact:'▦', location:'◈'};
+
+function galleryItem(x) {
+  const when = `${shortDate(x.ts_utc)} · ${esc(x.chat_name || x.chat_jid)}`;
+  const who = x.direction === 'out' ? 'Me' : (x.sender_name || x.sender_jid || '');
+  // Images, video and stickers are worth showing as thumbnails; everything
+  // else reads better as a labelled row than as a blank square.
+  if (x.kind === 'image' || x.kind === 'sticker') {
+    return `<button class="cell" data-chat="${x.chat_id}" data-msg="${x.message_id}"
+      title="${when}"><img loading="lazy" src="/media/${x.media_path}" alt="">
+      <span class="cap">${when}</span></button>`;
+  }
+  if (x.kind === 'video') {
+    return `<button class="cell" data-chat="${x.chat_id}" data-msg="${x.message_id}"
+      title="${when}"><video preload="metadata" src="/media/${x.media_path}#t=0.5"></video>
+      <span class="cap">▶ ${when}</span></button>`;
+  }
+  if (x.kind === 'link') {
+    // Show the real URL rather than friendly text: this is someone else's
+    // message, and a disguised link is exactly how phishing works. Any
+    // surrounding message text is shown underneath, clearly separate.
+    const m = (x.body || '').match(/https?:\/\/[^\s<>"']+/i);
+    const url = m ? m[0] : '';
+    const rest = (x.body || '').replace(url, '').trim();
+    return `<button class="filerow" data-chat="${x.chat_id}" data-msg="${x.message_id}">
+      <span class="ic">⇗</span>
+      <span class="nm2">${url ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer"
+          onclick="event.stopPropagation()">${esc(url.slice(0, 96))}</a>` : esc((x.body||'').slice(0,96))}
+        <span class="tag" style="display:block">${when}${who ? ' · ' + esc(who) : ''}${
+          rest ? ' — ' + esc(rest.slice(0, 60)) : ''}</span></span></button>`;
+  }
+  const filename = (x.orig_path || '').split('/').pop();
+  const label = x.caption || x.body || filename ||
+                (x.kind === 'location' ? 'Location' : x.kind);
+  const size = x.bytes ? fmtBytes(x.bytes) : (x.duration_s ? `${Math.round(x.duration_s)}s` : '');
+  return `<button class="filerow" data-chat="${x.chat_id}" data-msg="${x.message_id}">
+    <span class="ic">${KIND_ICON[x.kind] || '▪'}</span>
+    <span class="nm2">${esc(String(label).slice(0, 90))}
+      <span class="tag" style="display:block">${when}${who ? ' · ' + esc(who) : ''}</span></span>
+    <span class="meta2">${size}</span></button>`;
+}
+
+// Each keystroke re-renders the browser, which destroys the input element.
+// Without restoring focus and the caret you could only ever type one letter.
+function focusGalleryInput() {
+  const el = $('#gq');
+  if (!el || document.activeElement === el) return;
+  el.focus();
+  el.setSelectionRange(el.value.length, el.value.length);
+}
+
+async function openGallery(kind = null, append = false) {
+  galleryMode = true; searchMode = false;
+  const scoped = galleryScope && current;
+  const scope = scoped ? `&chat_id=${current}` : '';
+  const qs = galleryQuery ? `&q=${encodeURIComponent(galleryQuery)}` : '';
+  const kinds = await api(`/api/media/kinds?${scoped ? 'chat_id=' + current : ''}${qs}`);
+
+  $('#title').textContent = 'Attachments';
+  const thread = $('#thread');
+  thread.className = 'wrap hits';
+
+  // The search box has to survive an empty result, or you cannot correct a typo.
+  const searchBox = `<div class="gfind">
+    <input id="gq" type="search" placeholder="Search filenames and captions"
+           value="${esc(galleryQuery)}" aria-label="Search attachments">
+    <button id="gscope" aria-pressed="${!!scoped}" ${current ? '' : 'disabled'}
+      title="Limit to the open chat">${scoped ? 'this chat' : 'all chats'}</button>
+  </div>`;
+
+  if (!kinds.length) {
+    $('#subtitle').textContent = '';
+    thread.innerHTML = searchBox +
+      `<div class="empty">${galleryQuery
+        ? 'No attachments match ' + esc(galleryQuery) + '.'
+        : 'No attachments found here.'}</div>`;
+    if (galleryQuery) focusGalleryInput();
+    return;
+  }
+  if (kind) galleryKind = kind;
+  if (!kinds.some(k => k.kind === galleryKind)) galleryKind = kinds[0].kind;
+  if (!append) galleryOffset = 0;
+
+  const items = await api(
+    `/api/media?kind=${encodeURIComponent(galleryKind)}&offset=${galleryOffset}${scope}${qs}`);
+  const total = (kinds.find(k => k.kind === galleryKind) || {}).n || 0;
+  const visual = ['image', 'sticker', 'video'].includes(galleryKind);
+  const chatName = current ? (chats.find(c => c.id === current) || {}).name : null;
+
+  if (append) {
+    const holder = visual ? thread.querySelector('.grid') : thread;
+    thread.querySelector('#gmore')?.remove();
+    holder.insertAdjacentHTML('beforeend', items.map(galleryItem).join(''));
+  } else {
+    const tabs = `<div class="tabs">${kinds.map(k =>
+        `<button data-kind="${k.kind}" aria-pressed="${k.kind === galleryKind}">${
+          KIND_ICON[k.kind] || '▪'} ${k.kind} · ${k.n.toLocaleString()}</button>`).join('')}
+      </div>`;
+    thread.innerHTML = searchBox + tabs +
+      `<div class="n">${total.toLocaleString()} ${galleryKind}${total === 1 ? '' : 's'}` +
+      `${galleryQuery ? ' matching “' + esc(galleryQuery) + '”' : ''}` +
+      `${scoped && chatName ? ' in ' + esc(chatName) : scoped ? ' in this chat' : ' across all chats'}</div>` +
+      (items.length
+        ? (visual ? `<div class="grid">${items.map(galleryItem).join('')}</div>`
+                  : items.map(galleryItem).join(''))
+        : '<div class="empty">Nothing here.</div>');
+    $('#scroll').scrollTop = 0;
+  }
+
+  galleryOffset += items.length;
+  if (galleryOffset < total) {
+    thread.insertAdjacentHTML('beforeend',
+      `<button class="more" id="gmore">show more — ${galleryOffset.toLocaleString()} of ${total.toLocaleString()}</button>`);
+  }
+  $('#subtitle').textContent = `${galleryKind} · ${total.toLocaleString()}`;
+  if (!append && galleryQuery) focusGalleryInput();
+}
+
+/* ---------- search ---------- */
+let searchTimer;
+async function runSearch(q) {
+  if (!q.trim()) {
+    searchMode = false;
+    if (current) { openChat(current); }
+    else {
+      $('#thread').className = 'wrap';
+      $('#thread').innerHTML =
+        '<div class="empty">Pick a conversation, or press <kbd>/</kbd> to search everything.</div>';
+    }
+    return;
+  }
+  searchMode = true;
+  $('#thread').className = 'wrap hits';
+  const scope = scopeChat && current ? `&chat_id=${current}` : '';
+  let res;
+  try { res = await api(`/api/search?q=${encodeURIComponent(q)}${scope}`); }
+  catch (e) { $('#thread').innerHTML = `<div class="empty">${esc(e.detail || 'Search failed.')}</div>`; return; }
+  const hits = res.hits || [];
+  const chatName = current ? (chats.find(c => c.id === current) || {}).name : null;
+  const where = scope ? ` in ${esc(chatName || 'this chat')}` : ' across all chats';
+  // Say when the list is capped. "300 matches" next to a 300-row list reads as
+  // the whole answer, which for a common word is off by thousands.
+  const capped = res.total > hits.length
+    ? `showing first ${hits.length.toLocaleString()} of ${res.total.toLocaleString()} matches${where}`
+    : `${res.total.toLocaleString()} match${res.total === 1 ? '' : 'es'}${where}`;
+
+  const mark = s => esc(s).replace(/\u0001/g, '<mark>').replace(/\u0002/g, '</mark>');
+  $('#thread').innerHTML = `<div class="n">${capped}</div>`
+    + (hits.map(h => `<button class="hit" data-chat="${h.chat_id}" data-msg="${h.id}">
+        <span class="meta"><b>${esc(h.chat_name || h.chat_jid)}</b>
+        <span>${esc(h.direction === 'out' ? 'Me' : (h.sender_name || h.sender_jid || '?'))} · ${shortDate(h.ts_utc)} ${clock(h.ts_utc)}</span></span>
+        <span class="ex">${mark(h.excerpt || '')}</span></button>`).join('')
+      || '<div class="empty">Nothing found. Try fewer words — search already matches prefixes.</div>');
+  $('#scroll').scrollTop = 0;
+}
+
+/* ---------- events ---------- */
+$('#chats').addEventListener('click', e => {
+  const row = e.target.closest('.row');
+  if (row) {
+    // A deliberate jump elsewhere — nothing sensible to go "back" to.
+    backStack = []; renderBack();
+    $('#q').value = ''; openChat(+row.dataset.id);
+  }
+});
+$('#thread').addEventListener('click', e => {
+  // attachment browser: switch kind, toggle scope, page, or jump to context
+  const tab = e.target.closest('.tabs button[data-kind]');
+  if (tab) { openGallery(tab.dataset.kind); return; }
+  if (e.target.closest('#gscope')) { galleryScope = !galleryScope; openGallery(); return; }
+  if (e.target.closest('#gmore')) { openGallery(null, true); return; }
+  const cell = e.target.closest('.cell, .filerow');
+  if (cell) {
+    if (e.target.closest('a')) return;      // following a link, not opening the message
+    pushBack(); $('#q').value = ''; openChat(+cell.dataset.chat, +cell.dataset.msg);
+    return;
+  }
+
+  const hit = e.target.closest('.hit');
+  if (hit) { pushBack(); openChat(+hit.dataset.chat, +hit.dataset.msg); return; }
+  const img = e.target.closest('.att img');
+  if (img) {
+    const lb = document.createElement('div');
+    lb.className = 'lb'; lb.innerHTML = `<img src="${img.src}" alt="">`;
+    lb.onclick = () => lb.remove();
+    document.body.appendChild(lb);
+  }
+});
+$('#rail').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (b && current) openChat(current, +b.dataset.first);
+});
+$('#scroll').addEventListener('scroll', () => {
+  if (searchMode || galleryMode) return;
+  const el = $('#scroll');
+  // Reading backwards from now: pull older in at the top.
+  if (el.scrollTop < 240) loadOlder();
+  // Reading forwards from the start: pull newer in at the bottom.
+  if (order === 'old' && el.scrollHeight - el.scrollTop - el.clientHeight < 240) loadNewer();
+});
+
+$('#order').addEventListener('click', e => {
+  order = order === 'new' ? 'old' : 'new';
+  e.target.textContent = order === 'new' ? '↓ newest first' : '↑ oldest first';
+  e.target.setAttribute('aria-pressed', order === 'old');
+  if (current) openChat(current);
+});
+
+$('#gallery').addEventListener('click', () => {
+  if (galleryMode) { if (current) openChat(current); return; }
+  // WhatsApp's "Media, links and docs" belongs to the chat you are reading,
+  // so default to that. The toggle widens it to everything.
+  pushBack();
+  galleryScope = !!current;
+  galleryQuery = '';
+  openGallery();
+});
+
+// Delegated because the input is re-created on every render.
+$('#thread').addEventListener('input', e => {
+  if (e.target.id !== 'gq') return;
+  clearTimeout(galleryTimer);
+  const v = e.target.value;
+  galleryTimer = setTimeout(() => {
+    galleryQuery = v.trim();
+    openGallery();          // keeps the current kind if it still has matches
+  }, 260);
+});
+$('#q').addEventListener('input', e => {
+  clearTimeout(searchTimer);
+  const v = e.target.value;
+  renderChats(v);
+  searchTimer = setTimeout(() => runSearch(v), 220);
+});
+$('#scope').addEventListener('click', e => {
+  scopeChat = !scopeChat;
+  e.target.setAttribute('aria-pressed', scopeChat);
+  e.target.textContent = scopeChat ? 'this chat' : 'all';
+  runSearch($('#q').value);
+});
+$('#back').addEventListener('click', goBack);
+
+document.addEventListener('keydown', e => {
+  if (e.key === '/' && document.activeElement !== $('#q')) { e.preventDefault(); $('#q').focus(); }
+  if (e.key === 'Escape') {
+    const lightbox = $('.lb');
+    if (lightbox) { lightbox.remove(); return; }          // close the image first
+    if (document.activeElement === $('#q')) { $('#q').blur(); return; }
+    if (backStack.length) goBack();
+  }
+});
+
+loadChats();
+</script>
+</body>
+</html>

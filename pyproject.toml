@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wa-archive"
+version = "1.0.0"
+description = "A portable, searchable WhatsApp archive built from an encrypted iOS backup."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+
+# The reader is standard library only — http.server and sqlite3. Both
+# dependencies below are for getting data *off the phone*; once an archive
+# exists, reading it needs nothing but Python.
+dependencies = [
+    "iphone_backup_decrypt>=0.5",   # decrypts an encrypted local backup
+    # The streaming backup engine. Not optional in practice: without it every
+    # sync has to write the whole ~60 GB device backup before pruning it back
+    # down, which most laptops don't have room for.
+    "pymobiledevice3>=4.14",
+]
+
+[project.optional-dependencies]
+# Roughly halves key-derivation time when opening an encrypted backup.
+fast = ["fastpbkdf2>=0.2"]
+
+[project.scripts]
+wa-archive = "wa_archive.cli:main"
+
+[tool.setuptools]
+packages = ["wa_archive"]
+
+[tool.setuptools.package-data]
+wa_archive = ["schema.sql", "web/index.html"]
